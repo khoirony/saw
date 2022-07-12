@@ -136,6 +136,120 @@ class Admin extends CI_Controller
         redirect('Admin/kelolaketua');
     }
 
+    public function kriteria()
+    {
+        $data['title'] = 'Kelola Kriteria';
+        $user = $this->db->get_where('user', ['username' => $this->session->userdata('username')])->row_array();
+        $data['user'] = $user;
+        $data['data_kriteria'] = $this->db->get('kriteria')->result_array();
+        $query = "SELECT SUM(bobot) AS total FROM kriteria";
+        $data['bobot'] = $this->db->query($query)->row_array();
+
+        $this->load->view('templates/header', $data);
+        $this->load->view('templates/sidebar', $data);
+        $this->load->view('templates/topbar', $data);
+        $this->load->view('admin/kriteria', $data);
+        $this->load->view('templates/footer');
+    }
+
+    public function tambahkriteria()
+    {
+        $this->form_validation->set_rules('nama', 'Nama Kriteria', 'required');
+        $this->form_validation->set_rules('bobot', 'Bobot Kriteria', 'required');
+
+        $data['title'] = 'Kelola Kriteria';
+        $user = $this->db->get_where('user', ['username' => $this->session->userdata('username')])->row_array();
+        $data['user'] = $user;
+        
+
+        if ($this->form_validation->run() == false) {
+            $this->load->view('templates/header', $data);
+            $this->load->view('templates/sidebar', $data);
+            $this->load->view('templates/topbar', $data);
+            $this->load->view('admin/tambahkriteria', $data);
+            $this->load->view('templates/footer');
+        } else {
+            $hitungkriteria = $this->db->get('kriteria')->num_rows();
+            $data = [
+                'id_kriteria' => $hitungkriteria+1,
+                'nama' => htmlspecialchars($this->input->post('nama', true)),
+                'bobot' => $this->input->post('bobot')/100,
+            ];
+            $this->db->insert('kriteria', $data);
+
+            $this->db->from('kriteria');
+            $this->db->order_by("id_kriteria", "desc");
+            $this->db->limit(1);
+            $query = $this->db->get()->row_array();
+
+            $this->db->query("ALTER TABLE penilaian ADD c".$query['id_kriteria']." int(25)");
+            $this->db->query("ALTER TABLE normalisasi ADD c".$query['id_kriteria']." float");
+            
+            redirect('Admin/kriteria');
+        }
+    }
+
+    public function editkriteria($id)
+    {
+        $this->form_validation->set_rules('nama', 'Nama Kriteria', 'required');
+        $this->form_validation->set_rules('bobot', 'Bobot Kriteria', 'required');
+
+        $data['title'] = 'Kelola Kriteria';
+        $user = $this->db->get_where('user', ['username' => $this->session->userdata('username')])->row_array();
+        $data['user'] = $user;
+        $data['kriteria'] = $this->db->get_where('kriteria', ['id_kriteria' => $id])->row_array();
+
+        if ($this->form_validation->run() == false) {
+            $this->load->view('templates/header', $data);
+            $this->load->view('templates/sidebar', $data);
+            $this->load->view('templates/topbar', $data);
+            $this->load->view('admin/editkriteria', $data);
+            $this->load->view('templates/footer');
+        } else {
+            $data = [
+                'nama' => htmlspecialchars($this->input->post('nama', true)),
+                'bobot' => $this->input->post('bobot')/100,
+            ];
+
+            $this->db->set($data);
+            $this->db->where('id_kriteria', $id);
+            $this->db->update('kriteria');
+            
+            $this->_hitungsaw();
+            redirect('Admin/kriteria');
+        }
+    }
+
+    public function carikriteria()
+    {
+        $data['title'] = 'Kelola Kriteria';
+        $user = $this->db->get_where('user', ['username' => $this->session->userdata('username')])->row_array();
+        $data['user'] = $user;
+
+        $query = "SELECT * FROM kriteria where nama like '%" . $this->input->post('cari') . "%'";
+        $data['cari'] = $this->db->query($query)->result_array();
+        $data['hitung'] = $this->db->query($query)->num_rows();
+        $data['text'] = $this->input->post('cari');
+
+        $this->load->view('templates/header', $data);
+        $this->load->view('templates/sidebar', $data);
+        $this->load->view('templates/topbar', $data);
+        $this->load->view('admin/carikriteria', $data);
+        $this->load->view('templates/footer');
+    }
+
+    public function hapuskriteria($id)
+    {
+        $where = array('id_kriteria' => $id);
+        $this->db->where($where);
+        $this->db->delete('kriteria');
+
+        $this->db->query("ALTER TABLE penilaian DROP c".$id);
+        $this->db->query("ALTER TABLE normalisasi DROP c".$id);
+        $this->_hitungsaw();
+        redirect('Admin/kriteria');
+    }
+
     public function kelola()
     {
         $data['title'] = 'Kelola Anggota';
@@ -262,6 +376,12 @@ class Admin extends CI_Controller
         $where = array('id_anggota' => $id);
         $this->db->where($where);
         $this->db->delete('data_anggota');
+
+        $where = array('id_anggota' => $id);
+        $this->db->where($where);
+        $this->db->delete('penilaian');
+
+        $this->_hitungsaw();
         redirect('Admin/kelola');
     }
 
@@ -280,19 +400,25 @@ class Admin extends CI_Controller
 
     public function tambahpenilaian($id)
     {
-        $this->form_validation->set_rules('c1', 'C1', 'required');
-        $this->form_validation->set_rules('c2', 'C2', 'required');
-        $this->form_validation->set_rules('c3', 'C3', 'required');
-
+        
         $data['title'] = 'Penilaian Anggota';
         $user = $this->db->get_where('user', ['username' => $this->session->userdata('username')])->row_array();
         $data['user'] = $user;
+        $data['anggota'] = $this->db->get_where('data_anggota', ['id_anggota' => $id])->row_array();
+
         $hitung = $this->db->get_where('penilaian', ['id_anggota' => $id])->row_array();
         $data['hitung'] = $hitung;
-        $data['anggota'] = $this->db->get_where('data_anggota', ['id_anggota' => $id])->row_array();
         if($hitung){
             $data['penilaian'] = $this->db->get_where('penilaian', ['id_anggota' => $id])->row_array();
         }
+
+        $kriteria = $this->db->get('kriteria')->result_array();
+        $data['kriteria'] = $kriteria;
+
+        $this->form_validation->set_rules('tahun', 'Tahun/Periode', 'required');
+        foreach ($kriteria as $k):
+            $this->form_validation->set_rules('c'.$k['id_kriteria'], $k['nama'], 'required');
+        endforeach;
 
         if ($this->form_validation->run() == false) {
             $this->load->view('templates/header', $data);
@@ -301,64 +427,84 @@ class Admin extends CI_Controller
             $this->load->view('admin/tambahpenilaian', $data);
             $this->load->view('templates/footer');
         } else {
-            $data = [
-                'c1' => htmlspecialchars($this->input->post('c1', true)),
-                'c2' => htmlspecialchars($this->input->post('c2', true)),
-                'c3' => htmlspecialchars($this->input->post('c3', true)),
-                'id_anggota' => $id,
-            ];
-
-            if($hitung){
+            $query = "SELECT * FROM penilaian where id_anggota=$id and tahun=".$this->input->post('tahun');
+            $cek = $this->db->query($query)->num_rows();
+            if($cek == 0){
+                $data = [
+                    'tahun' => $this->input->post('tahun'),
+                    'id_anggota' => $id,
+                ];
+                $this->db->insert('penilaian', $data);
+            }
+            foreach ($kriteria as $k){
+                $data = [
+                    'c'.$k['id_kriteria'] => $this->input->post('c'.$k['id_kriteria']),
+                ];
                 $this->db->set($data);
                 $this->db->where('id_anggota', $id);
                 $this->db->update('penilaian');
-            }else{
-                $this->db->insert('penilaian', $data);
             }
 
-            // mengisi tabel normalisasi
-            $this->db->select('*');
-            $this->db->from('data_anggota');
-            $this->db->join('penilaian','data_anggota.id_anggota = penilaian.id_anggota');      
-            $matriks = $this->db->get()->result_array();
-
-            $this->db->order_by('c1','desc');
-            $c1 = $this->db->get('penilaian')->row_array();
-            $this->db->order_by('c2','desc');
-            $c2 = $this->db->get('penilaian')->row_array();
-            $this->db->order_by('c3','desc');
-            $c3 = $this->db->get('penilaian')->row_array();
-
-            $this->db->empty_table('normalisasi');
-            foreach ($matriks as $m) {
-                $data = [
-                    'c1' => $m['c1']/$c1['c1'],
-                    'c2' => $m['c2']/$c2['c2'],
-                    'c3' => $m['c3']/$c3['c3'],
-                    'id_anggota' => $m['id_anggota']
-                ];
-        
-                $this->db->insert('normalisasi', $data);    
-            }
-
-            // Mengisi Tabel Hasil
-            $this->db->select('*');
-            $this->db->from('data_anggota');
-            $this->db->join('normalisasi','data_anggota.id_anggota = normalisasi.id_anggota');      
-            $matriks = $this->db->get()->result_array();
-
-            $this->db->empty_table('hasil');
-            foreach ($matriks as $m) {
-                $data = [
-                    'hasil' => $m['c1']*0.35+$m['c2']*0.50+$m['c3']*0.15,
-                    'id_anggota' => $m['id_anggota']
-                ];
-        
-                $this->db->insert('hasil', $data);    
-            }
+            $this->_hitungsaw();
 
             
             redirect('Admin/penilaian');
+        }
+    }
+
+    public function _hitungsaw()
+    {
+        $kriteria = $this->db->get('kriteria')->result_array();
+        // mengisi tabel normalisasi
+        $this->db->select('*');
+        $this->db->from('data_anggota');
+        $this->db->join('penilaian','data_anggota.id_anggota = penilaian.id_anggota');      
+        $matriks = $this->db->get()->result_array();
+
+        $this->db->empty_table('normalisasi');
+        $no = 1;
+        foreach ($matriks as $m) {
+            $data = [
+                'id_normalisasi' => $no++,
+                'id_anggota' => $m['id_anggota'],
+                'tahun' => $m['tahun'],
+            ];
+            $this->db->insert('normalisasi', $data);   
+
+            foreach ($kriteria as $k){
+                $this->db->order_by('c'.$k['id_kriteria'],'desc');
+                $c = $this->db->get('penilaian')->row_array();
+
+                $data = [
+                    'c'.$k['id_kriteria'] => $m['c'.$k['id_kriteria']]/$c['c'.$k['id_kriteria']],
+                ];
+                $this->db->set($data);
+                $this->db->where('id_anggota', $m['id_anggota']);
+                $this->db->update('normalisasi');
+            } 
+        }
+
+        // Mengisi Tabel Hasil
+        $this->db->select('*');
+        $this->db->from('data_anggota');
+        $this->db->join('normalisasi','data_anggota.id_anggota = normalisasi.id_anggota');      
+        $matriks = $this->db->get()->result_array();
+
+        $this->db->empty_table('hasil');
+        $no = 1;
+        foreach ($matriks as $m) {
+            $hasil = 0;
+            foreach ($kriteria as $k){
+                $hasil += $m['c'.$k['id_kriteria']]*$k['bobot'];
+            } 
+            $data = [
+                'id_hasil' => $no++,
+                'hasil' => $hasil,
+                'id_anggota' => $m['id_anggota'],
+                'tahun' => $m['tahun'],
+            ];
+    
+            $this->db->insert('hasil', $data);    
         }
     }
 
@@ -392,6 +538,8 @@ class Admin extends CI_Controller
         $this->db->order_by("data_anggota.id_anggota", "asc"); 
         $data['matriks'] = $this->db->get()->result_array();
 
+        $data['kriteria'] = $this->db->get('kriteria')->result_array();
+
         $this->load->view('templates/header', $data);
         $this->load->view('templates/sidebar', $data);
         $this->load->view('templates/topbar', $data);
@@ -409,6 +557,8 @@ class Admin extends CI_Controller
         $this->db->join('normalisasi','data_anggota.id_anggota = normalisasi.id_anggota');
         $this->db->order_by("data_anggota.id_anggota", "asc");    
         $data['normalisasi'] = $this->db->get()->result_array();
+
+        $data['kriteria'] = $this->db->get('kriteria')->result_array();
 
         $this->load->view('templates/header', $data);
         $this->load->view('templates/sidebar', $data);

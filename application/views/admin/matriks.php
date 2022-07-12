@@ -10,9 +10,9 @@
                 <th scope="col" width="5%">No</th>
                 <th scope="col">Id Anggota</th>
                 <th scope="col">Nama Anggota</th>
-                <th scope="col">C1</th>
-                <th scope="col">C2</th>
-                <th scope="col">C3</th>
+                <?php foreach ($kriteria as $k): ?>
+                <th scope="col">C<?= $k['id_kriteria']; ?></th>
+                <?php endforeach; ?>
             </tr>
         </thead>
         <tbody>
@@ -25,9 +25,9 @@
                     <th scope="row"><?= $no++; ?></th>
                     <td><?= $m['id_anggota']; ?></td>
                     <td><?= $m['nama']; ?></td>
-                    <td><?= $m['c1']; ?></td>
-                    <td><?= $m['c2']; ?></td>
-                    <td><?= $m['c3']; ?></td>
+                    <?php foreach ($kriteria as $k): ?>
+                        <td><?= $m['c'.$k['id_kriteria']]; ?></td>
+                    <?php endforeach; ?>
                 </tr>
             <?php
             }

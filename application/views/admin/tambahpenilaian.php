@@ -15,42 +15,27 @@
 
             <form class="user" method="POST" action="">
                 <div class="form-group text-start">
-                    <p class="ms-3 mb-0">C1 - Besarnya Simpanan (35%)</p>
-                    <?php 
-                    if($hitung){
-                        echo '<input type="text" class="form-control form-control-user" id="c1" name="c1" value="'.$penilaian['c1'].'">';
-                    }else{
-                        echo'<input type="text" class="form-control form-control-user" id="c1" name="c1" placeholder="Rp.">';
-                    }
-                    ?>
-                    <?= form_error('c1', '<small class="text-danger pl-3">', '</small>'); ?>
-                </div>
+                    <p class="ms-3 mb-0">Tahun/Periode</p>
+                    <input type="number" class="form-control form-control-user" id="tahun" name="tahun" min="2010" max="2040">
+                    <!-- <?php if($hitung): ?>
+                        <input type="number" class="form-control form-control-user" id="tahun" name="tahun" min="2010" max="2040" value="<?= $penilaian['tahun']; ?>">
+                    <?php else: ?> -->
 
-                <div class="form-group text-start">
-                    <p class="ms-3 mb-0">C2 - Banyaknya Transaksi (50%)</p>
-                    <?php 
-                    if($hitung){
-                        echo '<input type="text" class="form-control form-control-user" id="c2" name="c2" value="'.$penilaian['c2'].'">';
-                    }else{
-                        echo'<input type="text" class="form-control form-control-user" id="c2" name="c2" placeholder="Banyaknya Transaksi">';
-                    }
-                    ?>
-                    
-                    <?= form_error('c2', '<small class="text-danger pl-3">', '</small>'); ?>
+                    <!-- <?php endif; ?> -->
+                    <?= form_error('tahun', '<small class="text-danger pl-3">', '</small>'); ?>
                 </div>
-
-                <div class="form-group text-start">
-                    <p class="ms-3 mb-0">C3 - Besarnya Keuntungan (15%)</p>
-                    <?php 
-                    if($hitung){
-                        echo '<input type="text" class="form-control form-control-user" id="c3" name="c3" value="'.$penilaian['c3'].'"';
-                    }else{
-                        echo'<input type="text" class="form-control form-control-user" id="c3" name="c3" placeholder="Rp.">';
-                    }
-                    ?>
-                    
-                    <?= form_error('c3', '<small class="text-danger pl-3">', '</small>'); ?>
-                </div>
+                <?php foreach ($kriteria as $k): ?>
+                    <div class="form-group text-start">
+                        <p class="ms-3 mb-0"><?= $k['nama'] ?></p>
+                        <input type="text" class="form-control form-control-user" id="c<?= $k['id_kriteria']; ?>" name="c<?= $k['id_kriteria']; ?>">
+                        <!-- <?php if($hitung): ?>
+                            <input type="text" class="form-control form-control-user" id="c<?= $k['id_kriteria']; ?>" name="c<?= $k['id_kriteria']; ?>" value="<?= $penilaian['c'.$k['id_kriteria']]; ?>">
+                        <?php else: ?> -->
+                            
+                        <!-- <?php endif; ?> -->
+                        <?= form_error('c'.$k['id_kriteria'], '<small class="text-danger pl-3">', '</small>'); ?>
+                    </div>
+                <?php endforeach; ?>
 
                 <div class="text-center">
                     <button type="submit" class="btn btn-primary btn-user px-5 mt-3">
